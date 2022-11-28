@@ -82,7 +82,7 @@ def names_change(variable, row, name_keys, name_variable):
 def salary_gross_change(i, row):
     if key[i] == 'salary_gross':
         if row[i] == "Trues": row[i] = "С вычетом налогов"
-        if row[i] == "Falses": row[i] = "With outout"
+        if row[i] == "Falses": row[i] = "Без вычета налогов"
 
 def comparison_change(variable, string):
     if string[variable] == "True":
