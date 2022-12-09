@@ -35,6 +35,7 @@ class DataSet:
 
     def delete_html(self, new_html):
         """Функция удаления HTML-тегов и лишних пробелов из поля.
+        Args:
                 new_html (str): Очищаемое поле
                 >>> DataSet.delete_html("abc")
         'abc'
@@ -58,6 +59,7 @@ class DataSet:
 
     def csv_reader(self, file):
         """Считывание csv-файла с проверкой есть ли данные в файле. Возвращает заголовки файла и данные о вакансиях
+        Args:
             file (str): Название считываемого файла.
         """
         reader = csv.reader(open(file, encoding='utf_8_sig'))
@@ -74,6 +76,7 @@ class DataSet:
     def csv_filer(self, headers, vacancies):
         """Отчищает лист вакансий от пустых элементов, создает словарь вакансий.
            Возвращает лист со словарями для каждой вакансии
+           Args:
            headers (list): Заголовки csv файла
            vacancies (list): Список с писаниями вакансий
         """
@@ -109,6 +112,7 @@ class Salary:
            """
     def __init__(self, salary_from, salary_to, salary_gross, salary_currency):
         """Инициализирует объект Salary
+        Args:
         salary_from (int): Нижняя граница вилки зарплаты
         salary_to (int): Верхняя граница вилки зарплаты
         salary_gross(bool): Оклад указан до вычета налогов
@@ -130,6 +134,7 @@ class Salary:
     def to_rub(self, new_salary: float) -> float:
         """
             Переводит валюту в рубли при помощи словаря currency_bet.
+            Args:
             new_salary (float): Значение оклада
         >>> Salary(10.0, 20, True, 'RUR').to_rub(10.0 + 20)
         30.0
@@ -155,8 +160,14 @@ class Report:
     def __init__(self, years_salary, years_vacs_count, prof_years_salary, prof_years_vacs_count, city_salary_rate,
                  city_vacs_rate):
         """Инициализирует класс Report и создаёт экземпляр класс Workbook, отвечающего за создание excel-таблиц
+        Args:
         years_salary: Динамика уровня зарплат по годам
-            """
+        years_vacs_count: Динамика количества вакансий по годам
+        prof_years_salary: Динамика уровня зарплат по годам для выбранной профессии
+        prof_years_vacs_count: Динамика количества вакансий по годам для выбранной профессии
+        city_salary_rate: Уровень зарплат по городам (в порядке убывания)
+        city_vacs_rate: Доля вакансий по городам (в порядке убывания)
+        """
         self.years_salary = years_salary
         self.years_vacs_count = years_vacs_count
         self.prof_years_salary = prof_years_salary
@@ -176,6 +187,9 @@ class Report:
             """ Метод из собранной статистики генерирует файл - report.xlsx,
                 где выводится вся собранна статистика в два листа, а также сохраняет файл report.xlsx в директорию,
                 откуда запускается этот Python-скрипт
+
+                Args:
+                    sheet ({columns, column_demensions}): Таблица в которую будут записываться данные.
                             """
             for column in sheet.columns:
                 new_length = 0
@@ -209,22 +223,24 @@ class Report:
             cell.number_format = FORMAT_PERCENTAGE_00
         new_workbook.save('report.xlsx')
 
-def get_statistic(result, index, new_message, slice=0, reverse=False):
-    """ Функция которая выводит данные в виде строк. Например: Динамика уровня зарплат по годам: {2022: 94892}
+def get_date(date):
+    """ Функция для вывода года публикации вакансии в правильном формате.
 
-        result (str): Строка с данными
-        new_message (str): Подписанные значение, которое выводится
-        """
-    slice = len(result) if slice == 0 else slice
-    statistic = dict(sorted(result, key = lambda item: item[index], reverse=reverse)[:slice])
-    print(f'{new_message}{str(statistic)}')
-    return statistic
+    Args:
+    date (str): Дата публикации вакансии
+
+    >>> get_date('2022-05-31T17:32:49+0300')
+    '31.05.2022'
+                    """
+    new_date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z')
+    return int(new_date.strftime('%Y'))
 
 def get_vacancies_statistic(vacs_list: List[Vacancy], fields, vac_name: str = ''):
     """ Функция который собирает статистику по вакансии
 
-    vacs_list (List[Vacancy]): список всех имеющихся вакансий
-    fields(): используемое поле в классе Vacancy
+    Args:
+        vacs_list (List[Vacancy]): список всех имеющихся вакансий
+    fields(str): используемое поле в классе Vacancy
     vac_name(str): Название ваканчии
     """
     statistic_result = {}
@@ -243,10 +259,12 @@ def get_vacancies_statistic(vacs_list: List[Vacancy], fields, vac_name: str = ''
 def get_statistic_salary(vacs_list: List[Vacancy], fields, vac_name: str = ''):
     """ Функция который собирает статистику по зарплате
 
-        vacs_list (List[Vacancy]): список всех имеющихся вакансий
-        fields(): используемое поле в классе Vacancy
-        vac_name(str): Название ваканчии
+    Args:
+    vacs_list (List[Vacancy]): список всех имеющихся вакансий
+    fields(str): используемое поле в классе Vacancy
+    vac_name(str): Название ваканчии
         """
+
     statistic_result = {}
     for vac in vacs_list:
         if vac.__getattribute__(fields) not in statistic_result.keys():
@@ -264,16 +282,17 @@ def get_statistic_salary(vacs_list: List[Vacancy], fields, vac_name: str = ''):
             else 0
     return statistic_result
 
-def get_date(date):
-    """ Функция для вывода года публикации вакансии в правильном формате.
-    date (str): Дата публикации вакансии
+def get_statistic(result, index, new_message, slice=0, reverse=False):
+    """ Функция которая выводит данные в виде строк. Например: Динамика уровня зарплат по годам: {2022: 94892}
 
-    >>> get_date('2022-05-31T17:32:49+0300')
-    '31.05.2022'
-                    """
-    new_date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z')
-    return int(new_date.strftime('%Y'))
-
+    Args:
+        result (dict): Строка с данными
+        new_message (str): Подписанные значение, которое выводится
+        """
+    slice = len(result) if slice == 0 else slice
+    statistic = dict(sorted(result, key = lambda item: item[index], reverse=reverse)[:slice])
+    print(f'{new_message}{str(statistic)}')
+    return statistic
 
 file = input("Введите название файла: ")
 vacancy = input("Введите название профессии: ")
