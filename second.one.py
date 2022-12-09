@@ -19,15 +19,47 @@ currency_bet = {"AZN": 35.68,
                    "UZS": 0.0055}
 
 class DataSet:
+    """Класс DataSet содержит методы по обработке данных, собирает статистику по вакансии и выводит результат в консоль
+        Attributes:
+            file (str): Название файла, может быть, в том числе, и путём, по которому расположен файл
+            vacancies (list): Список вакансий, по которой будет собираться отдельная статистика
+        """
     def __init__(self, file):
+        """Инициализирует объект класса DataSet
+                Args:
+                    file (str): Название файла
+                    vacancies (list): Список вакансий
+                """
         self.file = file
         self.vacancies = [Vacancy(vac) for vac in self.csv_filer(*self.csv_reader(file))]
 
     def delete_html(self, new_html):
+        """Функция удаления HTML-тегов и лишних пробелов из поля.
+                new_html (str): Очищаемое поле
+                >>> DataSet.delete_html("abc")
+        'abc'
+        >>> DataSet.delete_html("<div>abc</div>")
+        'abc'
+        >>> DataSet.delete_html("<div>abc")
+        'abc'
+        >>> DataSet.delete_html("   abc  ")
+        'abc'
+        >>> DataSet.delete_html(" abc     abd")
+        'abc abd'
+        >>> DataSet.delete_html(" <div><strong><i>  abc <i>  abd  <string>")
+        'abc abd'
+        >>> DataSet.delete_html(" <div> abc <iqewqljl> <  div   > abd <i>")
+        'abc abd'
+
+
+        """
         result = re.compile(r'<[^>]+>').sub('', new_html)
         return result if '\n' in new_html else " ".join(result.split())
 
     def csv_reader(self, file):
+        """Считывание csv-файла с проверкой есть ли данные в файле. Возвращает заголовки файла и данные о вакансиях
+            file (str): Название считываемого файла.
+        """
         reader = csv.reader(open(file, encoding='utf_8_sig'))
         new_vacancies = [row for row in reader]
         if len(new_vacancies) == 0:
@@ -40,43 +72,111 @@ class DataSet:
             return new_vacancies[0], new_vacancies[1:]
 
     def csv_filer(self, headers, vacancies):
+        """Отчищает лист вакансий от пустых элементов, создает словарь вакансий.
+           Возвращает лист со словарями для каждой вакансии
+           headers (list): Заголовки csv файла
+           vacancies (list): Список с писаниями вакансий
+        """
         vacancies_list = list(filter(lambda vac: (len(vac) == len(headers) and vac.count('') == 0), vacancies))
         vacanies_dictionary = [dict(zip(headers, map(self.delete_html, vac))) for vac in vacancies_list]
         return vacanies_dictionary
 
 class Vacancy:
-    def __init__(self, dictionary):
-        self.name = dictionary['name']
-        self.salary = Salary(dictionary['salary_from'], dictionary['salary_to'], dictionary['salary_currency'])
-        self.area_name = dictionary['area_name']
-        self.published_at = dictionary['published_at']
+    """Класс для представления вакансии
+        Attributes:
+            name (str): Название вакансии
+            salary (int): Среднее значение зарплаты
+            area_name (str): Территория, на которой числится вакансия
+            published_at (int): Год публикации вакансии
+        """
+    def __init__(self, dictionary_vac):
+        """Инициализирует объект Vacancy, высчитывает среднюю зарплату и производит конвертацию для целочисленных полей
+                Args:
+                    dictionary_vac: (dict[str]): Словарь вакансии, из которого инициализируются переменные объекта
+        """
+        self.name = dictionary_vac['name']
+        self.salary = Salary(dictionary_vac['salary_from'], dictionary_vac['salary_to'], dictionary_vac['salary_currency'])
+        self.area_name = dictionary_vac['area_name']
+        self.published_at = dictionary_vac['published_at']
 
 class Salary:
-    def __init__(self, salary_from, salary_to, salary_currency):
+    """Класс для представления зарплаты
+            Attributes:
+                salary_from (int): Нижняя граница вилки зарплаты
+                salary_to (int): Верхняя граница вилки зарплаты
+                salary_gross(bool): Оклад указан до вычета налогов
+                salary_currency (str): Валюта оклада
+           """
+    def __init__(self, salary_from, salary_to, salary_gross, salary_currency):
+        """Инициализирует объект Salary
+        salary_from (int): Нижняя граница вилки зарплаты
+        salary_to (int): Верхняя граница вилки зарплаты
+        salary_gross(bool): Оклад указан до вычета налогов
+        salary_currency (str): Валюта оклада
+        >>> Salary(10.0, 20.4, True, 'RUR').salary_from
+        10.0
+        >>> Salary(10.0, 20.4, True, 'RUR').salary_to
+        20.4
+        >>> Salary(10.0, 20.4, True, 'RUR').salary_currency
+        'RUR'
+        >>> Salary(10.0, 20.4, True, 'RUR').salary_gross
+        True
+                """
         self.salary_from = salary_from
         self.salary_to = salary_to
+        self.salary_gross = salary_gross
         self.salary_currency = salary_currency
 
     def to_rub(self, new_salary: float) -> float:
+        """
+            Переводит валюту в рубли при помощи словаря currency_bet.
+            new_salary (float): Значение оклада
+        >>> Salary(10.0, 20, True, 'RUR').to_rub(10.0 + 20)
+        30.0
+        >>> Salary(10, 20.0, True, 'RUR').to_rub(10 + 20.0)
+        30.0
+        >>> Salary(10, 20, True, 'EUR').to_rub(10 + 20)
+        1797.0
+        >>> Salary(10, 20, True, 'AZN').to_rub(10 + 20)
+        1070.4
+        """
         return new_salary * currency_bet[self.salary_currency]
 
 class Report:
-    def __init__(self, years_salary, years_vacs_count, prof_years_salary, prof_years_vacs_count, city_salary,
+    """Класс отвечает за генерацию excel-файла из собранной статистики
+        Attributes:
+            years_salary: Динамика уровня зарплат по годам
+            years_vacs_count: Динамика количества вакансий по годам
+            prof_years_salary: Динамика уровня зарплат по годам для выбранной профессии
+            prof_years_vacs_count: Динамика количества вакансий по годам для выбранной профессии
+            city_salary_rate: Уровень зарплат по городам (в порядке убывания)
+            city_vacs_rate: Доля вакансий по городам (в порядке убывания)
+        """
+    def __init__(self, years_salary, years_vacs_count, prof_years_salary, prof_years_vacs_count, city_salary_rate,
                  city_vacs_rate):
+        """Инициализирует класс Report и создаёт экземпляр класс Workbook, отвечающего за создание excel-таблиц
+        years_salary: Динамика уровня зарплат по годам
+            """
         self.years_salary = years_salary
         self.years_vacs_count = years_vacs_count
         self.prof_years_salary = prof_years_salary
         self.prof_years_vacs_count = prof_years_vacs_count
-        self.city_salary = city_salary
+        self.city_salary_rate = city_salary_rate
         self.city_vacs_rate = city_vacs_rate
 
     def generate_excel(self):
+        """ Метод создает два листа в файле report.xlsx
+                """
         new_workbook = Workbook()
         new_workbook.remove(new_workbook.active)
         years_sheet = new_workbook.create_sheet('Статистика по годам')
         city_sheet = new_workbook.create_sheet('Статистика по городам')
 
         def get_style(sheet):
+            """ Метод из собранной статистики генерирует файл - report.xlsx,
+                где выводится вся собранна статистика в два листа, а также сохраняет файл report.xlsx в директорию,
+                откуда запускается этот Python-скрипт
+                            """
             for column in sheet.columns:
                 new_length = 0
                 for col in column:
@@ -100,8 +200,8 @@ class Report:
         for index, column_name in enumerate(city_sheet_columns):
             city_sheet.cell(row=1, column=index + 1, value=column_name).font = Font(bold=True)
 
-        for index, keys in enumerate(self.city_salary.keys()):
-            city_sheet.append([keys, self.city_salary[keys], None, list(self.city_vacs_rate.keys())[index],
+        for index, keys in enumerate(self.city_salary_rate.keys()):
+            city_sheet.append([keys, self.city_salary_rate[keys], None, list(self.city_vacs_rate.keys())[index],
                                self.city_vacs_rate[list(self.city_vacs_rate.keys())[index]]])
         get_style(city_sheet)
 
@@ -110,16 +210,23 @@ class Report:
         new_workbook.save('report.xlsx')
 
 def get_statistic(result, index, new_message, slice=0, reverse=False):
+    """ Функция которая выводит данные в виде строк. Например: Динамика уровня зарплат по годам: {2022: 94892}
+
+        result (str): Строка с данными
+        new_message (str): Подписанные значение, которое выводится
+        """
     slice = len(result) if slice == 0 else slice
     statistic = dict(sorted(result, key = lambda item: item[index], reverse=reverse)[:slice])
     print(f'{new_message}{str(statistic)}')
     return statistic
 
-def get_date(date):
-    new_date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z')
-    return int(new_date.strftime('%Y'))
-
 def get_vacancies_statistic(vacs_list: List[Vacancy], fields, vac_name: str = ''):
+    """ Функция который собирает статистику по вакансии
+
+    vacs_list (List[Vacancy]): список всех имеющихся вакансий
+    fields(): используемое поле в классе Vacancy
+    vac_name(str): Название ваканчии
+    """
     statistic_result = {}
     for vac in vacs_list:
         if vac.__getattribute__(fields) not in statistic_result.keys():
@@ -134,6 +241,12 @@ def get_vacancies_statistic(vacs_list: List[Vacancy], fields, vac_name: str = ''
     return statistic_result
 
 def get_statistic_salary(vacs_list: List[Vacancy], fields, vac_name: str = ''):
+    """ Функция который собирает статистику по зарплате
+
+        vacs_list (List[Vacancy]): список всех имеющихся вакансий
+        fields(): используемое поле в классе Vacancy
+        vac_name(str): Название ваканчии
+        """
     statistic_result = {}
     for vac in vacs_list:
         if vac.__getattribute__(fields) not in statistic_result.keys():
@@ -150,6 +263,17 @@ def get_statistic_salary(vacs_list: List[Vacancy], fields, vac_name: str = ''):
             statistic_result[key]) != 0 \
             else 0
     return statistic_result
+
+def get_date(date):
+    """ Функция для вывода года публикации вакансии в правильном формате.
+    date (str): Дата публикации вакансии
+
+    >>> get_date('2022-05-31T17:32:49+0300')
+    '31.05.2022'
+                    """
+    new_date = datetime.datetime.strptime(date, '%Y-%m-%dT%H:%M:%S%z')
+    return int(new_date.strftime('%Y'))
+
 
 file = input("Введите название файла: ")
 vacancy = input("Введите название профессии: ")
@@ -176,3 +300,4 @@ dinamic_city_vac_rate = get_statistic(get_vacancies_statistic(get_objects, 'area
                                'Доля вакансий по городам (в порядке убывания): ', 10, True)
 Report(dinamic_salary_level, dinamic_vac_count, dinamic_years_salary, prof_years_vac_count, dinamic_city_salary_rate,
        dinamic_city_vac_rate).generate_excel()
+
